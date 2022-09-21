@@ -97,7 +97,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 }
 
 
-cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp)
+cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp, cv::Mat& pose)
 {
     if(mSensor!=RGBD)
     {
@@ -139,7 +139,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     }
     }
 
-    cv::Mat Tcw=mpTracker->GrabImageRGBD(im, depthmap, timestamp);
+    cv::Mat Tcw=mpTracker->GrabImageRGBD(im, depthmap, timestamp, pose);
 
         unique_lock<mutex> lock2(mMutexState);
     	    mTrackingState = mpTracker->mState;
@@ -297,17 +297,14 @@ void System::SaveKeyFrameTrajectoryTUM(const string &filename)
         float P_01=R.at<float>(0,1)*pKF->fx+R.at<float>( 2,1 )*pKF->cx;
         float P_02=R.at<float>(0,2)*pKF->fx+R.at<float> ( 2,2 )*pKF->cx;
         float P_03= t.at<float>(0) *pKF->fx+ t.at<float>(2) *pKF->cx;
-
         float P_10=R.at<float>(1,0)*pKF->fy+R.at<float>( 2,0 )*pKF->cy;
         float P_11=R.at<float>(1,1)*pKF->fy+R.at<float>( 2,1 )*pKF->cy;
         float P_12=R.at<float>(1,2)*pKF->fy+R.at<float> ( 2,2 )*pKF->cy;
         float P_13=t.at<float>(1)*pKF->fy+ t.at<float>(2) *pKF->cy;
-
         float P_20=R.at<float>(2,0);
         float P_21=R.at<float>(2,1);
         float P_22=R.at<float>(2,2);
         float P_23=t.at<float>(2);
-
         Pmatrix<< P_00<< " "<<P_01<<" "<<P_02<<" "<<P_03<<endl;
         Pmatrix<< P_10<< " "<<P_11<<" "<<P_12<<" "<<P_13<<endl;
         Pmatrix<< P_20<< " "<<P_21<<" "<<P_22<<" "<<P_23<<endl;
