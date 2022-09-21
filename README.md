@@ -32,6 +32,15 @@ inproceedings{Li2021PlanarSLAM,
  }
 ```
 
+## 0. System Test Requirements(Arslan)
+
+1) OpenCV : 3.2.0
+2) Pangolin : 0.6
+3) PCL : 1.7
+
+Note1: DBoW2 is used from installed ORB-SLAM3 library.
+Note2: Comment some parts in the CMakeLists.txt files of g2o, DBoW2 and PlanarSLAM !!!!
+
 ## 1. Prerequisites
 
 We have tested the library in **ubuntu 16.04** and **ubuntu 18.04**, but it should be easy to compile on other platforms. A powerful computer (e.g. i7) will ensure real-time performance and provide more stable and accurate results.
