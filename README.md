@@ -38,7 +38,7 @@ inproceedings{Li2021PlanarSLAM,
 2) Pangolin : 0.6
 3) PCL : 1.7
 
-Note1: DBoW2 is used from installed ORB-SLAM3 library.
+Note1: DBoW2 is used from installed ORB-SLAM3 library. \\
 Note2: Comment some parts in the CMakeLists.txt files of g2o, DBoW2 and PlanarSLAM !!!!
 
 ## 1. Prerequisites
