@@ -154,7 +154,7 @@ namespace Planar_SLAM {
         mpViewer = pViewer;
     }
 
-    cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp) {
+    cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp, cv::Mat& pose) {
         mImRGB = imRGB;
         mImGray = imRGB;
         mImDepth = imD;
@@ -179,7 +179,7 @@ namespace Planar_SLAM {
         std::chrono::steady_clock::time_point t3 = std::chrono::steady_clock::now();
 
 
-        Track();
+        Track(pose);
 
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
         double t12= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
@@ -203,7 +203,7 @@ namespace Planar_SLAM {
     }
 
 
-    void Tracking::Track() {
+    void Tracking::Track(cv::Mat& pose) {
 
         if (mState == NO_IMAGES_YET) {
             mState = NOT_INITIALIZED;
@@ -223,7 +223,7 @@ namespace Planar_SLAM {
             if (mSensor == System::STEREO || mSensor == System::RGBD) {
                 Rotation_cm = cv::Mat::zeros(cv::Size(3, 3), CV_32F);
 
-                StereoInitialization();
+                StereoInitialization(pose);
                 Rotation_cm = mpMap->FindManhattan(mCurrentFrame, mfVerTh, true);
                 //Rotation_cm=SeekManhattanFrame(mCurrentFrame.vSurfaceNormal,mCurrentFrame.mVF3DLines).clone();
                 Rotation_cm = TrackManhattanFrame(Rotation_cm, mCurrentFrame.vSurfaceNormal, mCurrentFrame.mVF3DLines).clone();
@@ -255,12 +255,12 @@ namespace Planar_SLAM {
                 CheckReplacedInLastFrame();
 
                 if (mVelocity.empty() || mCurrentFrame.mnId < mnLastRelocFrameId + 2) {
-                    bOK = TranslationEstimation();
+                    bOK = TranslationEstimation(pose);
 
                 } else {
-                    bOK = TranslationWithMotionModel();
+                    bOK = TranslationWithMotionModel(pose);
                     if (!bOK) {
-                        bOK = TranslationEstimation();
+                        bOK = TranslationEstimation(pose);
                     }
                 }
             }
@@ -270,9 +270,15 @@ namespace Planar_SLAM {
             // If we have an initial estimation of the camera pose and matching. Track the local map.
             if (!mbOnlyTracking) {
                 if (bOK) {
+                    // After init rotation and trans estimation; before local mapping, set pose as the one from the dataset.
+                    mCurrentFrame.SetPose(pose);
                     bOK = TrackLocalMap();
                 } else {
                     bOK = Relocalization();
+                    // Incase of track lose, set initial pose as the one from the dataset and perform pose refinement.
+                    mCurrentFrame.SetPose(pose);
+                    Optimizer::PoseOptimization(&mCurrentFrame);
+
                 }
             }
 
@@ -600,7 +606,6 @@ namespace Planar_SLAM {
                 {
                     vRotationCandidate[];
                 }
-
             }*/
                 //MF_can{bin{1}(j)} = [];
 
@@ -1156,10 +1161,11 @@ namespace Planar_SLAM {
         return tempMS;
     }
 
-    void Tracking::StereoInitialization() {
+    void Tracking::StereoInitialization(cv::Mat& pose) {
         if (mCurrentFrame.N > 50 || mCurrentFrame.NL > 15) {
             // Set Frame pose to the origin
-            mCurrentFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
+            //mCurrentFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
+            mCurrentFrame.SetPose(pose);
 
             // Create KeyFrame
             KeyFrame *pKFini = new KeyFrame(mCurrentFrame, mpMap, mpKeyFrameDB);
@@ -1182,7 +1188,7 @@ namespace Planar_SLAM {
                 }
             }
 
-
+            // Create MapLines and associate to KeyFrame
             for (int i = 0; i < mCurrentFrame.NL; i++) {
 
                 float z = mCurrentFrame.mvDepthLine[i];
@@ -1199,6 +1205,7 @@ namespace Planar_SLAM {
                 }
             }
 
+            // Create MapPlanes and associate to KeyFrame
             for (int i = 0; i < mCurrentFrame.mnPlaneNum; ++i) {
                 cv::Mat p3D = mCurrentFrame.ComputePlaneWorldCoeff(i);
                 MapPlane *pNewMP = new MapPlane(p3D, pKFini, mpMap);
@@ -1621,7 +1628,7 @@ namespace Planar_SLAM {
         }
     }
 
-    bool Tracking::TranslationEstimation() {
+    bool Tracking::TranslationEstimation(cv::Mat& pose) {
 
         // Compute Bag of Words vector
         mCurrentFrame.ComputeBoW();
@@ -1642,6 +1649,7 @@ namespace Planar_SLAM {
 //        int lmatches = 0;
 
         mCurrentFrame.SetPose(mLastFrame.mTcw);
+        //mCurrentFrame.SetPose(pose);
 
         int planeMatches = pmatcher.SearchMapByCoefficients(mCurrentFrame, mpMap->GetAllMapPlanes());
 //        int planeMatches = 0;
@@ -1729,14 +1737,15 @@ namespace Planar_SLAM {
 
         if ( finalMatches < 3) {
             cout << "TranslationEstimation: After: Not enough matches" << endl;
-            mCurrentFrame.SetPose(mLastFrame.mTcw);
+            //mCurrentFrame.SetPose(mLastFrame.mTcw);
+            mCurrentFrame.SetPose(pose);
             return false;
         }
 
         return true;
     }
 
-    bool Tracking::TranslationWithMotionModel() {
+    bool Tracking::TranslationWithMotionModel(cv::Mat& pose) {
         ORBmatcher matcher(0.9, true);
         LSDmatcher lmatcher;
         PlaneMatcher pmatcher(mfDThRef, mfAThRef, mfVerTh, mfParTh);
@@ -1746,6 +1755,7 @@ namespace Planar_SLAM {
         UpdateLastFrame();
 
         mCurrentFrame.SetPose(mVelocity * mLastFrame.mTcw);
+        //mCurrentFrame.SetPose(pose);
 
         // Project points seen in previous frame
         int th;
@@ -2612,7 +2622,7 @@ namespace Planar_SLAM {
 
                 PnPsolver *pSolver = vpPnPsolvers[i];
                 cv::Mat Tcw = pSolver->iterate(5, bNoMore, vbInliers, nInliers);
-
+                
                 // If Ransac reachs max. iterations discard keyframe
                 if (bNoMore) {
                     vbDiscarded[i] = true;
