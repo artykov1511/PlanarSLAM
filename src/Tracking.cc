@@ -1738,8 +1738,8 @@ namespace Planar_SLAM {
 
         if ( finalMatches < 3) {
             cout << "TranslationEstimation: After: Not enough matches" << endl;
-            //mCurrentFrame.SetPose(mLastFrame.mTcw);
-            mCurrentFrame.SetPose(pose);
+            mCurrentFrame.SetPose(mLastFrame.mTcw);
+            //mCurrentFrame.SetPose(pose);
             return false;
         }
 
