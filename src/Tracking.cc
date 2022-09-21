@@ -278,6 +278,7 @@ namespace Planar_SLAM {
                     // Incase of track lose, set initial pose as the one from the dataset and perform pose refinement.
                     mCurrentFrame.SetPose(pose);
                     Optimizer::PoseOptimization(&mCurrentFrame);
+                    bOK = true;
 
                 }
             }
