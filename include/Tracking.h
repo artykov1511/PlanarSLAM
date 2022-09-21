@@ -53,7 +53,7 @@ public:
              KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor);
 
     // Preprocess the input and call Track(). Extract features and performs stereo matching.
-    cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
+    cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp, cv::Mat& pose);
 
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
@@ -143,10 +143,10 @@ public:
 protected:
 
     // Main tracking function. It is independent of the input sensor.
-    void Track();
+    void Track(cv::Mat& pose);
 
     // Map initialization for stereo and RGB-D
-    void StereoInitialization();
+    void StereoInitialization(cv::Mat& pose);
 
     // Map initialization for monocular
     void MonocularInitialization();
@@ -157,8 +157,8 @@ protected:
     bool TrackReferenceKeyFrame();
     void UpdateLastFrame();
     bool TrackWithMotionModel();
-    bool TranslationEstimation();
-    bool TranslationWithMotionModel();
+    bool TranslationEstimation(cv::Mat& pose);
+    bool TranslationWithMotionModel(cv::Mat& pose);
     bool Relocalization();
 
     void UpdateLocalMap();
